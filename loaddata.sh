@@ -1,12 +1,12 @@
 #!/bin/bash
 #SBATCH --job-name=daic_preprocess
+#SBATCH -p gpu_a100_8
+#SBATCH --gres=gpu:nvidia_a100-sxm4-80gb:1
 #SBATCH --output=logs/prep_%j.out
 #SBATCH --error=logs/prep_%j.err
-#SBATCH --time=12:00:00        # DAIC-WOZ takes ~4-6 hours on a good GPU
-#SBATCH --gres=gpu:1           # You need 1 GPU for the Transformers
-#SBATCH --cpus-per-task=4      # For Pandas merging
-#SBATCH --mem=32G              # Safety margin for audio loading
-
+#SBATCH --time=12:00:00        
+#SBATCH --cpus-per-task=4      
+#SBATCH --mem=32G
 # Load your environment
 module load cuda-11.8.0-gcc-8.5.0-o55wffj
 source /scratch/dipanjan/rugraj/DIAC-WOZ/sbt-net-trio/.venv/bin/activate
