@@ -43,7 +43,7 @@ class MultimodalDataProcessor:
         # Text encoders
         self.text_tokenizer = AlbertTokenizer.from_pretrained("albert-large-v2")
         self.text_model = AlbertModel.from_pretrained("albert-large-v2").to(self.device).eval()
-        
+        self.text_proj = nn.Linear(1024, 768).to(self.device)  # Project ALBERT's 1024-dim to 768 for fusion
         self.context_tokenizer = BertTokenizer.from_pretrained("bert-base-uncased")
         self.context_model = BertModel.from_pretrained("bert-base-uncased").to(self.device).eval()
         
@@ -226,7 +226,7 @@ class MultimodalDataProcessor:
             
             with torch.no_grad():
                 answer_embed = self.text_model(answer_ids, answer_mask).last_hidden_state
-            
+            answer_embed = self.text_proj(answer_embed)  # Project to 768-dim
             # Context: BERT [CLS] token
             context_text = turn["question_context"]
             context_tokens = self.context_tokenizer(
@@ -366,3 +366,25 @@ if __name__ == "__main__":
     #     base_dir=r"/Users/gurusai/Desktop/DAIC_Raw",
     #     output_dir="data"
     # )
+
+    """
+    output:
+            packet = {
+                'participant_id': turn['participant_id'],
+                'turn_id': i,
+                'answer_text': answer_text,
+                'context_text': context_text,
+                'answer_embed': answer_embed.squeeze(0).cpu(),
+                'context_embed': context_embed.squeeze(0).cpu(),
+                'audio_embed': audio_embed.squeeze(0),
+                'visual_embed': vis_embed.squeeze(0),
+                'mask': answer_mask.squeeze(0).cpu()
+            }
+
+        n such packets for each participant, where:
+        - answer_embed: [128, 1024] (ALBERT large hidden size)
+        - context_embed: [768] (BERT base CLS token)
+        - audio_embed: [128, 768] (Wav2Vec2 pooled)
+        - visual_embed: [128, 768] (projected OpenFace features)
+
+    """
