@@ -8,6 +8,7 @@
 #SBATCH --mem=32G              # Safety margin for audio loading
 
 # Load your environment
+module load cuda-11.8.0-gcc-8.5.0-o55wffj
 source activate /Users/gurusai/programming/agentiAI/MoodDisorders/sbt-net-trio/.venv/bin/activate
 
 # Run the script
