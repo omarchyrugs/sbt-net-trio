@@ -17,11 +17,11 @@ class DepressionDataset(Dataset):
         # Calculate median if not provided
         if median_samples is None:
             print("Calculating dataset median duration...")
-            self.median_samples = self.calculate_dataset_median(label_file)
+            self.median_samples = self.calculate_dataset_median()
         else:
             self.median_samples = median_samples
 
-    def calculate_dataset_median(self, label_file):
+    def calculate_dataset_median(self):
         durations = []
         # Use itertuples() for efficient row-by-row iteration
         for row in self.df.itertuples():

@@ -1,0 +1,7 @@
+/__pycache__
+/.venv
+/data
+dev_split_Depression_AVEC2017.csv
+full_test_split.csv
+test_split_Depression_AVEC2017.csv
+train_split_Depression_AVEC2017.csv

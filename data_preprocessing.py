@@ -5,10 +5,8 @@ from transformers import AlbertModel, AlbertTokenizer, Wav2Vec2Model, Wav2Vec2Pr
 from torch import  nn
 import pandas as pd
 import os
-
-import librosa
 import soundfile as sf
-import os
+
 import numpy as np
 TARGET_LENGTH = 128  # Target audio sequence length after pooling
 
@@ -37,7 +35,7 @@ class MultimodalDataProcessor:
         self.target_sr = target_sr
         self.chunk_duration = chunk_duration
         self.target_packet_length = target_packet_length
-        
+        self.labels = pd.read_csv('labels.csv')
         print(f"[Processor] Initializing on device: {self.device}")
         
         # Text encoders
@@ -277,14 +275,58 @@ class MultimodalDataProcessor:
                 'context_embed': context_embed.squeeze(0).cpu(),
                 'audio_embed': audio_embed.squeeze(0),
                 'visual_embed': vis_embed.squeeze(0),
-                'mask': answer_mask.squeeze(0).cpu()
+                'mask': answer_mask.squeeze(0).cpu(),
+                'label': self.labels[self.labels['Participant_ID'] == int(turn['participant_id'])]['depressed'].values[0]
             }
             packets.append(packet)
         
         print(f"  ✓ Built {len(packets)} packets")
         return packets
+
+    def pack_packets(self, packets):
+        """
+        Convert list-of-dicts packets into tensor-major storage for fast save/load.
+
+        Returns:
+            dict with stacked tensors and lightweight metadata lists.
+        """
+        if not packets:
+            raise ValueError("Cannot pack empty packet list")
+
+        packed = {
+            "answer_embed": torch.stack([p["answer_embed"] for p in packets]),
+            "context_embed": torch.stack([p["context_embed"] for p in packets]),
+            "audio_embed": torch.stack([p["audio_embed"] for p in packets]),
+            "visual_embed": torch.stack([p["visual_embed"] for p in packets]),
+            "mask": torch.stack([p["mask"] for p in packets]),
+            "label": torch.tensor([int(p["label"]) for p in packets], dtype=torch.long),
+            "participant_id": [p["participant_id"] for p in packets],
+            "turn_id": torch.tensor([int(p["turn_id"]) for p in packets], dtype=torch.long),
+            "answer_text": [p["answer_text"] for p in packets],
+            "context_text": [p["context_text"] for p in packets],
+        }
+        return packed
+
+    def save_packets(self, packets, out_path):
+        """Save packets to a single .pt file for fast retrieval."""
+        os.makedirs(os.path.dirname(out_path), exist_ok=True)
+        packed = self.pack_packets(packets)
+        torch.save(packed, out_path)
+        return out_path
+
+    def load_packets(self, path, map_location="cpu"):
+        """
+        Load packed packets from .pt file.
+
+        Uses mmap when available for faster startup on large files.
+        """
+        try:
+            return torch.load(path, map_location=map_location, weights_only=False, mmap=True)
+        except TypeError:
+            # Fallback for older torch versions without mmap/weights_only.
+            return torch.load(path, map_location=map_location)
     
-    def process_participant(self, p_id, p_folder, output_dir="data"):
+    def process_participant(self, p_id, p_folder, output_dir="data", save_packets_to_disk=True):
         """
         Full pipeline: align → extract audio → build packets.
         
@@ -304,6 +346,11 @@ class MultimodalDataProcessor:
             
             # Step 3: Build packets
             packets = self.build_multimodal_packets(aligned_data, audio_features)
+
+            if save_packets_to_disk:
+                packet_path = os.path.join(output_dir, "packets", f"{p_id}_packets.pt")
+                self.save_packets(packets, packet_path)
+                print(f"  ✓ Saved packets: {packet_path}")
             
             print(f"{'='*60}")
             print(f"✓ {p_id} complete: {len(packets)} packets ready\n")
