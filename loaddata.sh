@@ -13,9 +13,8 @@ source activate /Users/gurusai/programming/agentiAI/MoodDisorders/sbt-net-trio/.
 
 # Run the script
 python data_preprocessing.py \
-    --base-dir "/Users/gurusai/Desktop/DAIC_Raw" \
-    --labels-csv "/Users/gurusai/programming/agentiAI/MoodDisorders/sbt-net-trio/labels.csv" \
-    --output-dir "/Users/gurusai/programming/agentiAI/MoodDisorders/sbt-net-trio/processed_data" \
+    --base-dir "/scratch/dipanjan/rugraj/DIAC-WOZ" \
+    --labels-csv "/scratch/dipanjan/rugraj/DIAC-WOZ/sbt-net-trio/labels.csv" \
+    --output-dir "/scratch/dipanjan/rugraj/DIAC-WOZ/processed_data" \
     --chunk-duration 30 \
     --target-packet-length 128 \
-    --participant-id 301
