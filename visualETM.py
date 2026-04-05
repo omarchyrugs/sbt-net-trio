@@ -1,35 +1,21 @@
-import torch
-import torch.nn as nn
 
-class VisualETMModule(nn.Module):
-    def __init__(self, visual_input_dim=388, hidden_dim=256, fusion_dim=768):
+from torch import nn
+
+
+class VisualETM(nn.Module):
+    def __init__(self, dim=768):
         super().__init__()
-        # 1. Project raw OpenFace/COFA features to the model's hidden dimension
-        self.visual_projection = nn.Linear(visual_input_dim, fusion_dim)
-        
-        # 2. GRU to track the temporal "slope" of facial expressions
-        self.gru = nn.GRU(
-            input_size=fusion_dim,
-            hidden_size=hidden_dim,
-            batch_first=True,
-            bidirectional=True 
-        )
-        
-        # 3. Final projection to map back to the fusion space (768)
-        self.trend_proj = nn.Linear(hidden_dim * 2, fusion_dim)
+        # Kernel size 3 looks at 3-frame "windows" to find micro-trends
+        self.conv = nn.Conv1d(dim, dim, kernel_size=3, padding=1)
+        self.activation = nn.ReLU()
+        self.ln = nn.LayerNorm(dim)
 
-    def forward(self, video_features):
-        """
-        video_features: [Batch, Frames, 388] 
-        (e.g., Action Units, Gaze, Pose from DAIC-WOZ)
-        """
-        # Project to 768
-        v_feat = self.visual_projection(video_features) # [B, T, 768]
+    def forward(self, x):
+        # x: [Batch, 128, 768]
+        # Conv1d expects [Batch, Channels, Length]
+        x_t = x.transpose(1, 2) 
         
-        # Track temporal dependencies (Visual fatigue/Flattening)
-        h, _ = self.gru(v_feat) # [B, T, 512]
+        trend = self.conv(x_t)
+        trend = self.activation(trend).transpose(1, 2)
         
-        # Global Mean Pooling to get the "Evolution Trend" (Eq. 7)
-        v_etm_visual = torch.mean(h, dim=1) # [B, 512]
-        
-        return self.trend_proj(v_etm_visual) # [B, 768]
+        return self.ln(trend + x)
