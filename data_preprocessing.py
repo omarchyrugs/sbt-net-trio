@@ -8,8 +8,9 @@ import os
 import soundfile as sf
 
 import numpy as np
+import argparse
 TARGET_LENGTH = 128  # Target audio sequence length after pooling
-
+import mail
 
 class MultimodalDataProcessor:
     """
@@ -17,7 +18,7 @@ class MultimodalDataProcessor:
     Handles transcript stitching, audio feature extraction, and multimodal packet generation.
     """
     
-    def __init__(self, device=None, target_sr=16000, chunk_duration=30, target_packet_length=128):
+    def __init__(self, device=None, target_sr=16000, chunk_duration=30, target_packet_length=128,labels_path ='./labels.csv'):
         """
         Initialize the processor with pre-loaded models and device.
         
@@ -27,6 +28,7 @@ class MultimodalDataProcessor:
             chunk_duration: process audio in chunks of N seconds
             target_packet_length: target sequence length for pooled embeddings (default 128)
         """
+        
         self.device = device or torch.device(
             "cuda" if torch.cuda.is_available() 
             else "mps" if torch.backends.mps.is_available() 
@@ -35,7 +37,8 @@ class MultimodalDataProcessor:
         self.target_sr = target_sr
         self.chunk_duration = chunk_duration
         self.target_packet_length = target_packet_length
-        self.labels = pd.read_csv('labels.csv')
+
+        self.labels = pd.read_csv(labels_path)
         print(f"[Processor] Initializing on device: {self.device}")
         
         # Text encoders
@@ -366,7 +369,6 @@ class MultimodalDataProcessor:
     def process_batch(self, participant_list, base_dir, output_dir="data"):
         """
         Process multiple participants in sequence.
-        
         Args:
             participant_list: list of participant IDs
             base_dir: base directory containing {P_ID}_P folders
@@ -386,34 +388,67 @@ class MultimodalDataProcessor:
         
         return results
 
+
+import traceback
+
+# ... [Your existing imports and MultimodalDataProcessor class] ...
+
+def run_monitored_job(processor, participant_ids, base_dir, output_dir):
+    start_time = mail.get_IST()
+    job_subject = f"🚀 DAIC-WOZ Job Started: {start_time}"
+    job_body = f"Processing {len(participant_ids)} participants.<br>Base Dir: {base_dir}"
+    
+    # 1. Alert: Job Start
+    mail.send_email_alert(job_subject, job_body)
+
+    try:
+        # 2. The Actual Processing
+        results = processor.process_batch(participant_ids, base_dir, output_dir)
+        
+        # 3. Alert: Success
+        end_time = mail.get_IST()
+        success_subject = f"✅ DAIC-WOZ Job Complete: {end_time}"
+        success_body = (
+            f"Successfully processed {len(results)} participants.<br>"
+            f"Output Directory: {output_dir}/packets"
+        )
+        mail.send_email_alert(success_subject, success_body)
+
+    except Exception as e:
+        # 4. Alert: Critical Failure
+        error_time = mail.get_IST()
+        error_stack = traceback.format_exc().replace("\n", "<br>")
+        fail_subject = f"❌ DAIC-WOZ Job FAILED: {error_time}"
+        fail_body = f"Error: {str(e)}<br><br><b>Stack Trace:</b><br>{error_stack}"
+        mail.send_email_alert(fail_subject, fail_body)
+        raise e # Still raise so Slurm knows it failed
 if __name__ == "__main__":
-    # ============= USAGE EXAMPLE =============
+    parser = argparse.ArgumentParser(description="Multimodal DAIC-WOZ preprocessing pipeline")
+    parser.add_argument("--base-dir", type=str, required=True, help="Path to DAIC root directory containing <PID>_P folders")
+    parser.add_argument("--labels-csv", type=str, required=True, help="Path to labels CSV")
+    parser.add_argument("--output-dir", type=str, required=True, help="Directory to save stitched audio and packet files")
+    parser.add_argument("--participant-id", type=int, default=None, help="Single participant id to process, e.g. 301")
+    parser.add_argument("--chunk-duration", type=int, default=30, help="Audio chunk duration (seconds)")
+    parser.add_argument("--target-sr", type=int, default=16000, help="Target audio sample rate")
+    parser.add_argument("--target-packet-length", type=int, default=128, help="Target pooled sequence length")
+    args = parser.parse_args()
+
     device = torch.device(
         "cuda" if torch.cuda.is_available() 
         else "mps" if torch.backends.mps.is_available() 
         else "cpu"
     )
-    # Initialize processor (once at the start)
+
     processor = MultimodalDataProcessor(
         device=device,
-        target_sr=16000,
-        chunk_duration=30,
-        target_packet_length=128
+        target_sr=args.target_sr,
+        chunk_duration=args.chunk_duration,
+        target_packet_length=args.target_packet_length,
+        labels_path=args.labels_csv,
     )
+    run_monitored_job(processor,processor.labels['Participant_ID'].values if args.participant_id is None else [args.participant_id], args.base_dir, args.output_dir)
 
-    # Process single participant
-    p_id = "301"
-    p_folder = r"/Users/gurusai/Desktop/DAIC_Raw/301_P"
-    packets = processor.process_participant(p_id, p_folder, output_dir="data")
-
-    # Or process batch
-    # participant_ids = ["301", "302", "303"]
-    # all_packets = processor.process_batch(
-    #     participant_ids, 
-    #     base_dir=r"/Users/gurusai/Desktop/DAIC_Raw",
-    #     output_dir="data"
-    # )
-
+        
     """
     output:
             packet = {

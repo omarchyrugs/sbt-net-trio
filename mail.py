@@ -3,6 +3,14 @@ from typing import Dict, List, Tuple, Optional
 
 import resend
 from dotenv import load_dotenv
+import datetime as dt
+
+def get_IST():
+    """Get current time in IST timezone."""
+    utc_now = dt.datetime.utcnow()
+    ist_offset = dt.timedelta(hours=5, minutes=30)
+    ist_now = utc_now + ist_offset
+    return ist_now.strftime("%Y-%m-%d %H:%M:%S")
 
 
 def send_email_alert(subject: str, body: str):
