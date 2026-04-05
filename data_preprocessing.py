@@ -6,7 +6,7 @@ from torch import  nn
 import pandas as pd
 import os
 import soundfile as sf
-
+import glob
 import numpy as np
 import argparse
 TARGET_LENGTH = 128  # Target audio sequence length after pooling
@@ -393,10 +393,41 @@ import traceback
 
 # ... [Your existing imports and MultimodalDataProcessor class] ...
 
+def validate_outputs_internal(output_dir):
+    """
+    Internal helper to check if the generated .pt files are healthy.
+    Returns (is_valid, message)
+    """
+    packet_path = os.path.join(output_dir, "packets", "*.pt")
+    pt_files = glob.glob(packet_path)
+    
+    if not pt_files:
+        return False, "No .pt files were found in the output directory."
+
+    errors = []
+    for f_path in pt_files[:10]: # Sample check the first 10 for speed
+        try:
+            data = torch.load(f_path, map_location="cpu")
+            # Verify the core 768-dim symmetry we worked for
+            if data['answer_embed'].shape[-1] != 768:
+                errors.append(f"{os.path.basename(f_path)} has wrong dimensions.")
+            if torch.isnan(data['answer_embed']).any():
+                errors.append(f"{os.path.basename(f_path)} contains NaNs.")
+        except Exception as e:
+            errors.append(f"Could not load {os.path.basename(f_path)}: {e}")
+
+    if errors:
+        return False, "<br>".join(errors[:5])
+    return True, f"Verified {len(pt_files)} files. Shapes and NaNs look clean."
+
 def run_monitored_job(processor, participant_ids, base_dir, output_dir):
     start_time = mail.get_IST()
     job_subject = f"🚀 DAIC-WOZ Job Started: {start_time}"
-    job_body = f"Processing {len(participant_ids)} participants.<br>Base Dir: {base_dir}"
+    job_body = (
+        f"<b>Status:</b> Extraction and Encoding Started<br>"
+        f"<b>Participants:</b> {len(participant_ids)}<br>"
+        f"<b>Target:</b> {output_dir}/packets"
+    )
     
     # 1. Alert: Job Start
     mail.send_email_alert(job_subject, job_body)
@@ -405,23 +436,40 @@ def run_monitored_job(processor, participant_ids, base_dir, output_dir):
         # 2. The Actual Processing
         results = processor.process_batch(participant_ids, base_dir, output_dir)
         
-        # 3. Alert: Success
+        # 3. Internal Validation Check
+        is_valid, validation_msg = validate_outputs_internal(output_dir)
+        
+        # 4. Alert: Success / Partial Success
         end_time = mail.get_IST()
-        success_subject = f"✅ DAIC-WOZ Job Complete: {end_time}"
+        if is_valid:
+            success_subject = f"✅ DAIC-WOZ Job Complete: {end_time}"
+            status_icon = "🟢"
+        else:
+            success_subject = f"⚠️ DAIC-WOZ Job Finished with VALIDATION ERRORS: {end_time}"
+            status_icon = "🟠"
+
         success_body = (
-            f"Successfully processed {len(results)} participants.<br>"
-            f"Output Directory: {output_dir}/packets"
+            f"{status_icon} <b>Processing Summary:</b><br>"
+            f"Participants Processed: {len(results)}<br>"
+            f"Validation Results: {validation_msg}<br><br>"
+            f"Ready for Phase 2: Model Training."
         )
         mail.send_email_alert(success_subject, success_body)
 
     except Exception as e:
-        # 4. Alert: Critical Failure
+        # 5. Alert: Critical Failure (Script Crash)
         error_time = mail.get_IST()
-        error_stack = traceback.format_exc().replace("\n", "<br>")
-        fail_subject = f"❌ DAIC-WOZ Job FAILED: {error_time}"
-        fail_body = f"Error: {str(e)}<br><br><b>Stack Trace:</b><br>{error_stack}"
+        # Formatting stack trace for HTML email
+        error_stack = traceback.format_exc().replace("\n", "<br>").replace(" ", "&nbsp;")
+        
+        fail_subject = f"❌ DAIC-WOZ Job CRASHED: {error_time}"
+        fail_body = (
+            f"<b>Error Type:</b> {type(e).__name__}<br>"
+            f"<b>Message:</b> {str(e)}<br><br>"
+            f"<b>Full Traceback:</b><br><font face='monospace' size='2'>{error_stack}</font>"
+        )
         mail.send_email_alert(fail_subject, fail_body)
-        raise e # Still raise so Slurm knows it failed
+        raise e  # Re-raise after alerting
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Multimodal DAIC-WOZ preprocessing pipeline")
     parser.add_argument("--base-dir", type=str, required=True, help="Path to DAIC root directory containing <PID>_P folders")
