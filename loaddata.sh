@@ -9,7 +9,7 @@
 
 # Load your environment
 module load cuda-11.8.0-gcc-8.5.0-o55wffj
-source activate /scratch/dipanjan/rugraj/DIAC-WOZ/sbt-net-trio/.venv/bin/activate
+source /scratch/dipanjan/rugraj/DIAC-WOZ/sbt-net-trio/.venv/bin/activate
 
 # Run the script
 python data_preprocessing.py \
@@ -17,4 +17,4 @@ python data_preprocessing.py \
     --labels-csv "/scratch/dipanjan/rugraj/DIAC-WOZ/sbt-net-trio/labels.csv" \
     --output-dir "/scratch/dipanjan/rugraj/DIAC-WOZ/processed_data" \
     --chunk-duration 30 \
-    --target-packet-length 128 \
+    --target-packet-length 128 
