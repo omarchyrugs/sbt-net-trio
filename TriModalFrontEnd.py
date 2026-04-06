@@ -2,7 +2,7 @@
 from torch import nn
 from VisualBranch import VisualBranch
 from VisualETM import VisualETM
-from semantic_gating import SemanticGatingModule
+from semantic_gating import SemanticGating
 
 class TriModalFrontEnd(nn.Module):
     def __init__(self, dim=768):
@@ -12,8 +12,8 @@ class TriModalFrontEnd(nn.Module):
         self.visual_trend = VisualETM(dim)
         
         # 2.2: The Semantic Gaters
-        self.audio_gater = SemanticGatingModule(dim)
-        self.visual_gater = SemanticGatingModule(dim)
+        self.audio_gater = SemanticGating(dim)
+        self.visual_gater = SemanticGating(dim)
 
     def forward(self, batch):
         text = batch['text']       # [B, 128, 768]

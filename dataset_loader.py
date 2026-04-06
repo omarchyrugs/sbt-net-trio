@@ -56,14 +56,15 @@ class DAICDataset(Dataset):
         
         # Extract the specific turn
         # answer_embed: [128, 768], audio: [128, 768], visual: [128, 768], mask: [128]
-        print(target['patient_id'], i, target['label'])
+        #print(target['patient_id'], i, target['label'])
         return {
             'text': data['answer_embed'][i],
             'audio': data['audio_embed'][i],
             'visual': data['visual_embed'][i],
             'context': data['context_embed'][i],
             'mask': data['mask'][i],
-            'label': torch.tensor(target['label'], dtype=torch.float32)
+            'label': torch.tensor(target['label'], dtype=torch.float32),
+            'patient_id': target['patient_id']
         }
 
 # Example usage:
