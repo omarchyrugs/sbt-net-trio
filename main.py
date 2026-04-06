@@ -106,6 +106,7 @@ def train_full_kfold(args, device):
 
         model = SBTNetTrio(dim=768).to(device)
         optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.epochs) # introduce cosine annealing- will dynamically adjust learning rate
         criterion = torch.nn.BCEWithLogitsLoss(pos_weight=torch.tensor([args.pos_weight]).to(device))
 
         best_fold_f1 = 0
@@ -120,6 +121,7 @@ def train_full_kfold(args, device):
                 loss.backward()
                 torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
                 optimizer.step()
+                scheduler.step()
 
             metrics = validate_patient_level(model, val_loader, device)
             
