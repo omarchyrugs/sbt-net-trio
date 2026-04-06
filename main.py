@@ -151,7 +151,7 @@ if __name__ == "__main__":
     parser.add_argument("--batch_size", type=int, default=8)
     parser.add_argument("--lr", type=float, default=1e-5)
     parser.add_argument("--folds", type=int, default=5)
-    parser.add_argument("--pos_weight", type=float, default=5.0)
+    parser.add_argument("--pos_weight", type=float, default=3.0)
     parser.add_argument("--weight_decay", type=float, default=0.01)
     
     args = parser.parse_args()
