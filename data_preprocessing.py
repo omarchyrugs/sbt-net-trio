@@ -11,6 +11,7 @@ import numpy as np
 import argparse
 TARGET_LENGTH = 128  # Target audio sequence length after pooling
 import mail
+import gc
 
 class MultimodalDataProcessor:
     """
@@ -341,6 +342,7 @@ class MultimodalDataProcessor:
         print(f"{'='*60}")
         
         try:
+            
             # Step 1: Align and stitch
             aligned_data, stitched_path = self.align_and_stitch(p_id, p_folder, output_dir)
             
@@ -380,11 +382,21 @@ class MultimodalDataProcessor:
         results = {}
         
         for p_id in participant_list:
+            output_path = os.path.join(args.output_dir, "packets", f"{p_id}_packets.pt")
+            
+            if os.path.exists(output_path):
+                print(f"⏩ Skipping {p_id} - already processed.")
+                continue
             p_folder = os.path.join(base_dir, f"{p_id}_P")
             packets = self.process_participant(p_id, p_folder, output_dir)
             
             if packets is not None:
                 results[p_id] = packets
+            gc.collect() 
+            # Release all unoccupied cached memory from the GPU
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+            print(f"✅ Finished {p_id}. GPU Cache Cleared.")
         
         return results
 
