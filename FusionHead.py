@@ -12,7 +12,7 @@ class ClinicalFusionHead(nn.Module):
         # Final Classifier
         self.classifier = nn.Sequential(
             nn.Linear(dim * 2, 512), # Concatenating the two specialized branches
-            nn.BatchNorm1d(512),
+            nn.LayerNorm(512),
             nn.ReLU(),
             nn.Dropout(0.4),
             nn.Linear(512, 1)
