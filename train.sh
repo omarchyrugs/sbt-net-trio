@@ -7,7 +7,7 @@
 #SBATCH --time=06:00:00
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=16
+#SBATCH --cpus-per-task=8
 #SBATCH --mem=128G
 #SBATCH --gres=gpu:nvidia_h200_nvl:1
 #SBATCH --partition=gpu_h200_8         # <--- EXACT PARTITION NAME FOUND
