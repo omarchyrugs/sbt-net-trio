@@ -12,6 +12,7 @@ from dataset_loader import DAICDataset
 from STBNetTrio import SBTNetTrio
 from mail import send_email_alert, get_IST
 
+torch.serialization.add_safe_globals([np._core.multiarray.scalar])
 def validate_patient_level(model, loader, device):
     model.eval()
     
