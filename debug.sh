@@ -11,4 +11,4 @@
 module load cuda-11.8.0-gcc-8.5.0-o55wffj
 source /scratch/dipanjan/rugraj/DIAC-WOZ/sbt-net-trio/.venv/bin/activate
 
-python /scratch/dipanjan/rugraj/DIAC-WOZ/sbt-net-trio/debug.sh
+python /scratch/dipanjan/rugraj/DIAC-WOZ/sbt-net-trio/debug.py
